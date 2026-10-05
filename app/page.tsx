@@ -1,8 +1,13 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
-import { addToCart, getCart, getProducts } from "@/lib/api";
+import {
+  addToCart,
+  getCart,
+  getProducts,
+  removeCartItem,
+  updateCartItemQuantity,
+} from "@/lib/api";
 
 type Product = {
   product_id: number;
@@ -28,6 +33,10 @@ type CartItem = {
   discount_percent: number;
 };
 
+const CART_ID = "11111111-1111-1111-1111-111111111111";
+const USER_ID = 1;
+const BASKET_ID = 1;
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -47,28 +56,79 @@ export default function Home() {
       });
   }, []);
 
+  const refreshCart = async () => {
+    try {
+      const updatedCart = await getCart(CART_ID);
+      setCartItems(updatedCart);
+    } catch {
+      setCartItems([]);
+    }
+  };
+
   const handleAddToBasket = async (productId: number) => {
     try {
       setCartMessage("Adding to basket...");
 
       await addToCart(
-        "11111111-1111-1111-1111-111111111111",
-        1,
-        1,
+        CART_ID,
+        USER_ID,
+        BASKET_ID,
         productId,
         1
       );
 
-      const updatedCart = await getCart(
-        "11111111-1111-1111-1111-111111111111"
-      );
+      await refreshCart();
 
-      setCartItems(updatedCart);
       setCartMessage("Product added to basket successfully.");
     } catch {
       setCartMessage("Failed to add product to basket.");
     }
   };
+
+  const handleIncreaseQuantity = async (item: CartItem) => {
+    try {
+      setCartMessage("Updating quantity...");
+
+      await updateCartItemQuantity(
+        CART_ID,
+        item.cart_item_id,
+        item.quantity + 1
+      );
+
+      await refreshCart();
+
+      setCartMessage("Quantity increased.");
+    } catch {
+      setCartMessage("Failed to increase quantity.");
+    }
+  };
+
+  const handleDecreaseQuantity = async (item: CartItem) => {
+  try {
+    setCartMessage("Updating quantity...");
+
+    if (item.quantity <= 1) {
+      await removeCartItem(CART_ID, item.cart_item_id);
+
+      await refreshCart();
+
+      setCartMessage("Product removed from basket.");
+      return;
+    }
+
+    await updateCartItemQuantity(
+      CART_ID,
+      item.cart_item_id,
+      item.quantity - 1
+    );
+
+    await refreshCart();
+
+    setCartMessage("Quantity decreased.");
+  } catch {
+    setCartMessage("Failed to decrease quantity.");
+  }
+};
 
   return (
     <main className="min-h-screen bg-gray-100 px-6 py-10">
@@ -189,8 +249,33 @@ export default function Home() {
                         </h3>
 
                         <p className="mt-1 text-sm text-gray-500">
-                          Quantity: {item.quantity}
+                          Quantity
                         </p>
+
+                        <div className="mt-2 flex items-center gap-3">
+                          <button
+                            onClick={() =>
+                              handleDecreaseQuantity(item)
+                            }
+                            
+                            className="h-9 w-9 rounded-lg border border-gray-300 text-lg font-bold text-gray-900 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            −
+                          </button>
+
+                          <span className="min-w-8 text-center font-semibold text-gray-900">
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            onClick={() =>
+                              handleIncreaseQuantity(item)
+                            }
+                            className="h-9 w-9 rounded-lg border border-gray-300 text-lg font-bold text-gray-900 transition hover:bg-gray-100"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
 
                       <p className="text-lg font-bold text-gray-900">
@@ -199,7 +284,7 @@ export default function Home() {
                     </div>
 
                     <p className="mt-3 text-sm text-gray-600">
-                      Total weight: {item.weight * item.quantity} kg
+                      Total weight: {item.weight} kg
                     </p>
                   </div>
                 ))}
@@ -211,4 +296,3 @@ export default function Home() {
     </main>
   );
 }
-

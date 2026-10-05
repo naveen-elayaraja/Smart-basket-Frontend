@@ -19,6 +19,30 @@ export async function getProducts() {
 
   return response.json();
 }
+export async function updateCartItemQuantity(
+  cartId: string,
+  cartItemId: number,
+  quantity: number
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/cart/${cartId}/items/${cartItemId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        quantity,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to update cart item quantity");
+  }
+
+  return response.json();
+}
 export async function addToCart(
   cartId: string,
   userId: number,
@@ -51,6 +75,23 @@ export async function getCart(cartId: string) {
 
   if (!response.ok) {
     throw new Error("Failed to fetch cart");
+  }
+
+  return response.json();
+}
+export async function removeCartItem(
+  cartId: string,
+  cartItemId: number
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/cart/${cartId}/items/${cartItemId}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to remove cart item");
   }
 
   return response.json();
