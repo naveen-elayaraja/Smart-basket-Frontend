@@ -1,62 +1,49 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
 
-export async function checkBackendHealth() {
-  const response = await fetch(`${API_BASE_URL}/health`);
+const API_BASE_URL = "";
+
+async function handleResponse<T>(
+  response: Response,
+  errorMessage: string
+): Promise<T> {
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error("Backend health check failed");
+    throw new Error(
+      data.detail || data.error || `${errorMessage} (${response.status})`
+    );
   }
 
-  return response.json();
+  return data as T;
+}
+
+export async function checkBackendHealth() {
+  const response = await fetch(`${API_BASE_URL}/health`, {
+    cache: "no-store",
+  });
+
+  return handleResponse(response, "Backend health check failed");
 }
 
 export async function getProducts() {
-  const response = await fetch(`${API_BASE_URL}/products/`);
+  const response = await fetch("/api/products", {
+    cache: "no-store",
+  });
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch products");
-  }
-
-  return response.json();
+  return handleResponse(response, "Failed to fetch products");
 }
-export async function updateCartItemQuantity(
-  cartId: string,
-  cartItemId: number,
-  quantity: number
-) {
-  const response = await fetch(
-    `${API_BASE_URL}/cart/${cartId}/items/${cartItemId}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        quantity,
-      }),
-    }
-  );
 
-  if (!response.ok) {
-    throw new Error("Failed to update cart item quantity");
-  }
-
-  return response.json();
-}
 export async function addToCart(
   cartId: string,
   userId: number,
   basketId: number,
   productId: number,
-  quantity: number
+  quantity: number = 1
 ) {
-  const response = await fetch(`${API_BASE_URL}/cart/items`, {
+  const response = await fetch("/api/cart/items", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      cart_id: cartId,
+      ...(cartId ? { cart_id: cartId } : {}),
       user_id: userId,
       basket_id: basketId,
       product_id: productId,
@@ -64,35 +51,58 @@ export async function addToCart(
     }),
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to add product to basket");
-  }
-
-  return response.json();
+  return handleResponse(response, "Failed to add product to basket");
 }
+
 export async function getCart(cartId: string) {
-  const response = await fetch(`${API_BASE_URL}/cart/${cartId}`);
+  if (!cartId) return [];
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch cart");
+  const response = await fetch(
+    `/api/cart/${encodeURIComponent(cartId)}`,
+    { cache: "no-store" }
+  );
+
+  if (response.status === 404) {
+    return [];
   }
 
-  return response.json();
+  return handleResponse<any[]>(response, "Failed to fetch cart");
 }
+
+export async function updateCartItemQuantity(
+  cartId: string,
+  cartItemId: number,
+  quantity: number
+) {
+  if (quantity < 1) {
+    throw new Error("Quantity must be at least 1");
+  }
+
+  const response = await fetch(
+    `/api/cart/${encodeURIComponent(cartId)}/items/${cartItemId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    }
+  );
+
+  return handleResponse(
+    response,
+    "Failed to update cart item quantity"
+  );
+}
+
 export async function removeCartItem(
   cartId: string,
   cartItemId: number
 ) {
   const response = await fetch(
-    `${API_BASE_URL}/cart/${cartId}/items/${cartItemId}`,
+    `/api/cart/${encodeURIComponent(cartId)}/items/${cartItemId}`,
     {
       method: "DELETE",
     }
   );
 
-  if (!response.ok) {
-    throw new Error("Failed to remove cart item");
-  }
-
-  return response.json();
+  return handleResponse(response, "Failed to remove cart item");
 }
